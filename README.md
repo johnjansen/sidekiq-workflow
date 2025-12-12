@@ -130,18 +130,58 @@ Task1.perform_async({"field_name" => "hello"})
 
 Sidekiq does not use a job's return value, so output schemas are only useful if you persist the output somewhere.
 
-`sidekiq-workflow` supports an optional, pluggable per-workflow **memory** backend:
+`sidekiq-workflow` supports an optional, pluggable per-workflow **memory** backend: a per-run key/value store.
 
-- Workflow middleware can persist a typed job's output into memory.
-- Typed jobs can hydrate their `Input` from memory (missing/partial inputs).
+### How it works
 
-Configure a backend (Redis example):
+- `Workflow#run` generates a `workflow_run_id` (UUID) and attaches it to every enqueued job payload under `workflow_run_id`.
+- `Sidekiq::Workflow::Middleware` wraps job execution in a runtime context (run_id + Sidekiq config), then:
+  - persists the job's return value into memory (when it is a `Hash` or a `Sidekiq::Workflow::Schema`)
+  - advances completion callbacks
+
+### Input hydration (TypedJob)
+
+When a job includes `Sidekiq::Workflow::TypedJob` and defines `Input`, the input hash is built like:
+
+1. Start with memory values for the keys defined in `Input`
+2. Merge in the job's provided argument hash (provided keys win)
+3. Validate/construct an `Input` instance
+
+Typed jobs can therefore be enqueued with **no args** if their `Input` can be fully hydrated from memory.
+
+### Output persistence
+
+On successful job completion, the middleware writes the returned hash/schema to memory for the current `workflow_run_id`.
+
+If you "mutate the input", you must return the mutated value if you want it persisted for downstream steps.
+
+### Backends
+
+A memory backend must implement:
+
+- `write(run_id, hash, config:)`
+- `read(run_id, keys:, config:)`
+- `clear(run_id, config:)`
+
+Included backend:
+
+- `Sidekiq::Workflow::Memory::RedisHashMemory` – stores values as JSON in a Redis hash keyed by `key_prefix:run_id` with TTL.
+
+### Configuration
 
 ```ruby
 Sidekiq::Workflow.configure do |cfg|
-  cfg.memory = Sidekiq::Workflow::Memory::RedisHashMemory.new(ttl: 300)
+  cfg.memory = Sidekiq::Workflow::Memory::RedisHashMemory.new(ttl: 300, key_prefix: "swf:mem")
 end
 ```
+
+### Concurrency / key collisions
+
+Memory is a flat hash per run. If multiple parallel tasks write the same key, last write wins.
+
+For group-heavy DAGs, prefer namespacing keys (e.g. `"task1.something"`) or implement a custom backend/merging strategy.
+
+### Example
 
 A runnable example exists at `examples/memory.rb`.
 
