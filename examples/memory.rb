@@ -51,11 +51,15 @@ class MemoryTask2
   end
 
   class Output < Sidekiq::Workflow::Schema
+    optional :something, String  # you can mutate the input, but only on output
     required :final, String
   end
 
   def perform(input)
-    {"final" => "#{input.something}!"}
+    {
+      "something" => input.something.reverse,
+      "final" => input.something + "!"
+    }
   end
 end
 
