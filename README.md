@@ -185,6 +185,53 @@ For group-heavy DAGs, prefer namespacing keys (e.g. `"task1.something"`) or impl
 
 A runnable example exists at `examples/memory.rb`.
 
+## Templates (named, parameterized workflows)
+
+For larger workflows (e.g. "enrich and index"), you often want to define a DAG shape once and run it many times with different configs.
+
+`sidekiq-workflow` provides a small in-process template registry:
+
+- `Sidekiq::Workflow::Templates.register("name", input: SomeSchema) { |input| ... }`
+- `Sidekiq::Workflow::Templates.run("name", params_hash)`
+
+### Ergonomic config passing via memory + TypedJob
+
+If workflow memory is configured, `Templates.run` will pre-write the template params into memory for the new `workflow_run_id`.
+
+Jobs which include `Sidekiq::Workflow::TypedJob` can then be enqueued with **no args**; their `Input` schema is hydrated from memory.
+
+Job argument hashes still override memory values for a given key.
+
+```ruby
+Sidekiq::Workflow.configure do |cfg|
+  cfg.memory = Sidekiq::Workflow::Memory::RedisHashMemory.new(ttl: 300, key_prefix: "swf:mem")
+end
+
+class EnrichAndIndexInput < Sidekiq::Workflow::Schema
+  required :doc_id, String
+
+  class Index < Sidekiq::Workflow::Schema
+    required :index_name, String
+  end
+
+  required :index, Index
+end
+
+Sidekiq::Workflow::Templates.register("enrich_and_index", input: EnrichAndIndexInput) do |_input|
+  Sidekiq::Workflow::Chain.new(
+    Sidekiq::Workflow::Job.new(FetchDoc),
+    Sidekiq::Workflow::Job.new(IndexDoc)
+  )
+end
+
+run_id = Sidekiq::Workflow::Templates.run(
+  "enrich_and_index",
+  {"doc_id" => "123", "index" => {"index_name" => "products"}}
+)
+```
+
+A runnable example exists at `examples/templates.rb`.
+
 ## Barriers (group completion) and TTL
 
 Groups use Redis barrier keys (atomic counters) to coordinate completion.
