@@ -13,6 +13,9 @@ require "sidekiq/workflow/barrier/at_most_once_barrier"
 
 require "sidekiq/workflow/configuration"
 
+require "sidekiq/workflow/schema"
+require "sidekiq/workflow/typed_job"
+
 require "sidekiq/workflow/models/chain"
 require "sidekiq/workflow/models/group"
 require "sidekiq/workflow/models/with_delay"

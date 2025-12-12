@@ -95,6 +95,37 @@ workflow = Sidekiq::Workflow::Workflow.new(
 workflow.run
 ```
 
+## Typed Inputs/Outputs (Schemas)
+
+Sidekiq jobs can optionally define an `Input` and `Output` schema (validated at runtime) by including `Sidekiq::Workflow::TypedJob`.
+
+Notes:
+
+- Sidekiq calls `perform(*args)` and does not pass keyword arguments.
+- Typed jobs therefore expect a single Hash argument which is converted to `Input`.
+- The job's return value is validated against `Output` (even though Sidekiq does not use return values).
+
+```ruby
+class Task1
+  include Sidekiq::Job
+  include Sidekiq::Workflow::TypedJob
+
+  class Input < Sidekiq::Workflow::Schema
+    required :field_name, String
+  end
+
+  class Output < Sidekiq::Workflow::Schema
+    required :something, String
+  end
+
+  def perform(input)
+    {"something" => input.field_name}
+  end
+end
+
+Task1.perform_async({"field_name" => "hello"})
+```
+
 ## Proof / Demo
 
 From this repository:
