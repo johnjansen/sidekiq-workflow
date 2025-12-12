@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Sidekiq
-  module Workflow
+  module Sideline
     # A minimal schema/typed-data base class.
     #
     # It is designed to validate Sidekiq job arguments which must be JSON-native
@@ -80,7 +80,7 @@ module Sidekiq
       def coerce_value(type, value, key)
         return nil if value.nil?
 
-        if type.is_a?(Class) && type < Sidekiq::Workflow::Schema
+        if type.is_a?(Class) && type < Sidekiq::Sideline::Schema
           return value if value.is_a?(type)
           raise TypeError, "#{key} must be a Hash or #{type}" unless value.is_a?(Hash)
 
@@ -93,7 +93,7 @@ module Sidekiq
       end
 
       def dump_value(value)
-        return value.to_h if value.is_a?(Sidekiq::Workflow::Schema)
+        return value.to_h if value.is_a?(Sidekiq::Sideline::Schema)
         value
       end
     end

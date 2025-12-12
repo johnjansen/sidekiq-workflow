@@ -13,10 +13,10 @@ class RuntimeTest < Minitest::Test
     end
 
     def perform
-      callbacks_ref = Sidekiq::Workflow::Runtime.current_callbacks_ref
+      callbacks_ref = Sidekiq::Sideline::Runtime.current_callbacks_ref
       self.class.barrier_id = callbacks_ref[-1][0]
 
-      Sidekiq::Workflow.extend_ttl!(ttl: 60)
+      Sidekiq::Sideline.extend_ttl!(ttl: 60)
     end
   end
 
@@ -33,14 +33,14 @@ class RuntimeTest < Minitest::Test
   def setup
     super
 
-    @old_barrier_ttl = Sidekiq::Workflow.configuration.barrier_ttl
-    Sidekiq::Workflow.configure do |cfg|
+    @old_barrier_ttl = Sidekiq::Sideline.configuration.barrier_ttl
+    Sidekiq::Sideline.configure do |cfg|
       cfg.barrier_ttl = 2
     end
   end
 
   def teardown
-    Sidekiq::Workflow.configure do |cfg|
+    Sidekiq::Sideline.configure do |cfg|
       cfg.barrier_ttl = @old_barrier_ttl
     end
 
@@ -48,10 +48,10 @@ class RuntimeTest < Minitest::Test
   end
 
   def test_extend_ttl_refreshes_barrier_keys
-    workflow = Sidekiq::Workflow::Workflow.new(
-      Sidekiq::Workflow::Chain.new(
-        Sidekiq::Workflow::Job.new(Task1),
-        Sidekiq::Workflow::Job.new(Task2)
+    workflow = Sidekiq::Sideline::Workflow.new(
+      Sidekiq::Sideline::Chain.new(
+        Sidekiq::Sideline::Job.new(Task1),
+        Sidekiq::Sideline::Job.new(Task2)
       )
     )
 

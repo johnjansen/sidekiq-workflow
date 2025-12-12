@@ -15,32 +15,32 @@ Make it easy to:
 Add a small in-process registry of templates.
 
 - Templates are registered by a string name
-- Template builder receives a params object (ideally a `Sidekiq::Workflow::Schema`)
+- Template builder receives a params object (ideally a `Sidekiq::Sideline::Schema`)
 - Builder returns a workflow node (`Job`, `Chain`, `Group`, `WithDelay`)
 
 ### Ergonomics trick: seed config into workflow memory
 
 If workflow memory is enabled, `Templates.run` can pre-write the template params into memory for the new `run_id`.
 
-Then, jobs that include `Sidekiq::Workflow::TypedJob` can define `Input` schemas and be enqueued with **no args** (their inputs hydrate from memory).
+Then, jobs that include `Sidekiq::Sideline::TypedJob` can define `Input` schemas and be enqueued with **no args** (their inputs hydrate from memory).
 
 Example:
 
 ```ruby
-class EnrichAndIndexInput < Sidekiq::Workflow::Schema
+class EnrichAndIndexInput < Sidekiq::Sideline::Schema
   required :index_name, String
   required :doc_id, String
 end
 
-Sidekiq::Workflow::Templates.register("enrich_and_index", input: EnrichAndIndexInput) do |_input|
-  Sidekiq::Workflow::Chain.new(
-    Sidekiq::Workflow::Job.new(FetchDoc),
-    Sidekiq::Workflow::Job.new(EnrichDoc),
-    Sidekiq::Workflow::Job.new(IndexDoc)
+Sidekiq::Sideline::Templates.register("enrich_and_index", input: EnrichAndIndexInput) do |_input|
+  Sidekiq::Sideline::Chain.new(
+    Sidekiq::Sideline::Job.new(FetchDoc),
+    Sidekiq::Sideline::Job.new(EnrichDoc),
+    Sidekiq::Sideline::Job.new(IndexDoc)
   )
 end
 
-Sidekiq::Workflow::Templates.run(
+Sidekiq::Sideline::Templates.run(
   "enrich_and_index",
   {"index_name" => "products", "doc_id" => "123"}
 )

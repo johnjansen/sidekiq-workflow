@@ -1,11 +1,11 @@
 # frozen_string_literal: true
 
 module Sidekiq
-  module Workflow
+  module Sideline
     module Runtime
-      RUN_ID_KEY = :__sidekiq_workflow_run_id
-      CONFIG_KEY = :__sidekiq_workflow_config
-      CALLBACKS_REF_KEY = :__sidekiq_workflow_callbacks_ref
+      RUN_ID_KEY = :__sidekiq_sideline_run_id
+      CONFIG_KEY = :__sidekiq_sideline_config
+      CALLBACKS_REF_KEY = :__sidekiq_sideline_callbacks_ref
 
       def self.current_run_id
         Thread.current[RUN_ID_KEY]
@@ -24,12 +24,12 @@ module Sidekiq
         return false if callbacks_ref.nil?
 
         config = current_config
-        raise "Sidekiq::Workflow runtime is not available (missing Sidekiq config)" if config.nil?
+        raise "Sidekiq::Sideline runtime is not available (missing Sidekiq config)" if config.nil?
 
-        ttl ||= Sidekiq::Workflow.configuration.barrier_ttl
+        ttl ||= Sidekiq::Sideline.configuration.barrier_ttl
         raise ArgumentError, "ttl must be a positive Integer" unless ttl.is_a?(Integer) && ttl.positive?
 
-        completion_callbacks = Sidekiq::Workflow.configuration.callback_storage.retrieve(callbacks_ref)
+        completion_callbacks = Sidekiq::Sideline.configuration.callback_storage.retrieve(callbacks_ref)
         barrier_ids = completion_callbacks.map { |completion_id, _remaining_workflow, _propagate| completion_id }.uniq
         return false if barrier_ids.empty?
 

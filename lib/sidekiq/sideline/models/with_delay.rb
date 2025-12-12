@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Sidekiq
-  module Workflow
+  module Sideline
     class WithDelay
       attr_reader :task
       attr_reader :delay

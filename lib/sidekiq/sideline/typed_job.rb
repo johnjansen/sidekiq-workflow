@@ -1,20 +1,20 @@
 # frozen_string_literal: true
 
 module Sidekiq
-  module Workflow
+  module Sideline
     # TypedJob wraps a job's perform method to validate its input and output.
     #
     # Usage:
     #
     #   class MyTask
     #     include Sidekiq::Job
-    #     include Sidekiq::Workflow::TypedJob
+    #     include Sidekiq::Sideline::TypedJob
     #
-    #     class Input < Sidekiq::Workflow::Schema
+    #     class Input < Sidekiq::Sideline::Schema
     #       required :field_name, String
     #     end
     #
-    #     class Output < Sidekiq::Workflow::Schema
+    #     class Output < Sidekiq::Sideline::Schema
     #       required :something, String
     #     end
     #
@@ -73,9 +73,9 @@ module Sidekiq
       end
 
       def hydrate_input_from_memory(input_schema, raw)
-        memory = Sidekiq::Workflow.configuration.memory
-        run_id = Sidekiq::Workflow::Runtime.current_run_id
-        config = Sidekiq::Workflow::Runtime.current_config
+        memory = Sidekiq::Sideline.configuration.memory
+        run_id = Sidekiq::Sideline::Runtime.current_run_id
+        config = Sidekiq::Sideline::Runtime.current_config
 
         return raw unless memory && run_id && config
 

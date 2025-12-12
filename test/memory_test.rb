@@ -5,15 +5,15 @@ require_relative "helper"
 class MemoryTest < Minitest::Test
   class Task1
     include Sidekiq::Job
-    include Sidekiq::Workflow::TypedJob
+    include Sidekiq::Sideline::TypedJob
 
     sidekiq_options retry: 0
 
-    class Input < Sidekiq::Workflow::Schema
+    class Input < Sidekiq::Sideline::Schema
       required :field_name, String
     end
 
-    class Output < Sidekiq::Workflow::Schema
+    class Output < Sidekiq::Sideline::Schema
       required :something, String
     end
 
@@ -24,15 +24,15 @@ class MemoryTest < Minitest::Test
 
   class Task2
     include Sidekiq::Job
-    include Sidekiq::Workflow::TypedJob
+    include Sidekiq::Sideline::TypedJob
 
     sidekiq_options retry: 0
 
-    class Input < Sidekiq::Workflow::Schema
+    class Input < Sidekiq::Sideline::Schema
       required :something, String
     end
 
-    class Output < Sidekiq::Workflow::Schema
+    class Output < Sidekiq::Sideline::Schema
       required :final, String
     end
 
@@ -44,14 +44,14 @@ class MemoryTest < Minitest::Test
   def setup
     super
 
-    @old_memory = Sidekiq::Workflow.configuration.memory
-    Sidekiq::Workflow.configure do |cfg|
-      cfg.memory = Sidekiq::Workflow::Memory::RedisHashMemory.new(ttl: 60, key_prefix: "swf:test:mem")
+    @old_memory = Sidekiq::Sideline.configuration.memory
+    Sidekiq::Sideline.configure do |cfg|
+      cfg.memory = Sidekiq::Sideline::Memory::RedisHashMemory.new(ttl: 60, key_prefix: "sl:test:mem")
     end
   end
 
   def teardown
-    Sidekiq::Workflow.configure do |cfg|
+    Sidekiq::Sideline.configure do |cfg|
       cfg.memory = @old_memory
     end
 
@@ -59,16 +59,16 @@ class MemoryTest < Minitest::Test
   end
 
   def test_memory_persists_output_and_hydrates_next_task_input
-    workflow = Sidekiq::Workflow::Workflow.new(
-      Sidekiq::Workflow::Chain.new(
-        Sidekiq::Workflow::Job.new(Task1, {"field_name" => "hello"}),
-        Sidekiq::Workflow::Job.new(Task2)
+    workflow = Sidekiq::Sideline::Workflow.new(
+      Sidekiq::Sideline::Chain.new(
+        Sidekiq::Sideline::Job.new(Task1, {"field_name" => "hello"}),
+        Sidekiq::Sideline::Job.new(Task2)
       )
     )
 
     run_id = workflow.run
 
-    mem = Sidekiq::Workflow.configuration.memory
+    mem = Sidekiq::Sideline.configuration.memory
     data = mem.read(run_id, keys: %w[something final], config: Sidekiq.default_configuration)
 
     assert_equal "hello", data["something"]

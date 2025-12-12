@@ -60,14 +60,14 @@ class WorkflowTest < Minitest::Test
   def test_chain_then_group_then_chain
     key = "events"
 
-    workflow = Sidekiq::Workflow::Workflow.new(
-      Sidekiq::Workflow::Chain.new(
-        Sidekiq::Workflow::Job.new(Task1, key),
-        Sidekiq::Workflow::Group.new(
-          Sidekiq::Workflow::Job.new(Task2, key),
-          Sidekiq::Workflow::Job.new(Task3, key)
+    workflow = Sidekiq::Sideline::Workflow.new(
+      Sidekiq::Sideline::Chain.new(
+        Sidekiq::Sideline::Job.new(Task1, key),
+        Sidekiq::Sideline::Group.new(
+          Sidekiq::Sideline::Job.new(Task2, key),
+          Sidekiq::Sideline::Job.new(Task3, key)
         ),
-        Sidekiq::Workflow::Job.new(Task4, key)
+        Sidekiq::Sideline::Job.new(Task4, key)
       )
     )
 
@@ -82,17 +82,17 @@ class WorkflowTest < Minitest::Test
   def test_nested_chain_inside_group
     key = "events"
 
-    workflow = Sidekiq::Workflow::Workflow.new(
-      Sidekiq::Workflow::Chain.new(
-        Sidekiq::Workflow::Job.new(Task1, key),
-        Sidekiq::Workflow::Group.new(
-          Sidekiq::Workflow::Chain.new(
-            Sidekiq::Workflow::Job.new(Task2, key),
-            Sidekiq::Workflow::Job.new(Task5, key)
+    workflow = Sidekiq::Sideline::Workflow.new(
+      Sidekiq::Sideline::Chain.new(
+        Sidekiq::Sideline::Job.new(Task1, key),
+        Sidekiq::Sideline::Group.new(
+          Sidekiq::Sideline::Chain.new(
+            Sidekiq::Sideline::Job.new(Task2, key),
+            Sidekiq::Sideline::Job.new(Task5, key)
           ),
-          Sidekiq::Workflow::Job.new(Task3, key)
+          Sidekiq::Sideline::Job.new(Task3, key)
         ),
-        Sidekiq::Workflow::Job.new(Task4, key)
+        Sidekiq::Sideline::Job.new(Task4, key)
       )
     )
 

@@ -1,12 +1,12 @@
 # frozen_string_literal: true
 
 module Sidekiq
-  module Workflow
+  module Sideline
     module Barrier
       class AtMostOnceBarrier
         attr_accessor :config
 
-        def initialize(key, ttl: Sidekiq::Workflow::CALLBACK_BARRIER_TTL, config: Sidekiq.default_configuration)
+        def initialize(key, ttl: Sidekiq::Sideline::CALLBACK_BARRIER_TTL, config: Sidekiq.default_configuration)
           @key = key
           @ttl = ttl
           @ran_key = "#{key}_ran"

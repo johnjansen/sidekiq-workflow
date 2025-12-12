@@ -7,12 +7,12 @@ require "logger"
 require "redis-client"
 
 require "sidekiq"
-require "sidekiq/workflow"
+require "sidekiq/sideline"
 
 redis_url = ENV.fetch("REDIS_URL")
 RedisClient.new(url: redis_url).call("FLUSHDB")
 
-EVENTS_KEY = "sidekiq-workflow:proof:events"
+EVENTS_KEY = "sidekiq-sideline:proof:events"
 
 class ProofTask1
   include Sidekiq::Job
@@ -65,21 +65,21 @@ instance = Sidekiq.configure_embed do |config|
   config.logger.level = Logger::WARN
 
   config.server_middleware do |chain|
-    chain.add Sidekiq::Workflow::Middleware
+    chain.add Sidekiq::Sideline::Middleware
   end
 end
 
 instance.run
 
 begin
-  workflow = Sidekiq::Workflow::Workflow.new(
-    Sidekiq::Workflow::Chain.new(
-      Sidekiq::Workflow::Job.new(ProofTask1, EVENTS_KEY),
-      Sidekiq::Workflow::Group.new(
-        Sidekiq::Workflow::Job.new(ProofTask2, EVENTS_KEY),
-        Sidekiq::Workflow::Job.new(ProofTask3, EVENTS_KEY)
+  workflow = Sidekiq::Sideline::Workflow.new(
+    Sidekiq::Sideline::Chain.new(
+      Sidekiq::Sideline::Job.new(ProofTask1, EVENTS_KEY),
+      Sidekiq::Sideline::Group.new(
+        Sidekiq::Sideline::Job.new(ProofTask2, EVENTS_KEY),
+        Sidekiq::Sideline::Job.new(ProofTask3, EVENTS_KEY)
       ),
-      Sidekiq::Workflow::Job.new(ProofTask4, EVENTS_KEY)
+      Sidekiq::Sideline::Job.new(ProofTask4, EVENTS_KEY)
     )
   )
 

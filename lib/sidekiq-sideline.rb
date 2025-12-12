@@ -1,3 +1,3 @@
 # frozen_string_literal: true
 
-require "sidekiq/workflow"
+require "sidekiq/sideline"

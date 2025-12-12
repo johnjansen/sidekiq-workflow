@@ -1,25 +1,25 @@
 # frozen_string_literal: true
 
 module Sidekiq
-  module Workflow
+  module Sideline
     module Serialize
       def self.serialize_workflow(workflow)
         return nil if workflow.nil?
 
         case workflow
-        when Sidekiq::Workflow::Job
+        when Sidekiq::Sideline::Job
           workflow.to_h.merge("__type__" => "job")
-        when Sidekiq::Workflow::Chain
+        when Sidekiq::Sideline::Chain
           {
             "__type__" => "chain",
             "children" => workflow.tasks.map { |task| serialize_workflow(task) }
           }
-        when Sidekiq::Workflow::Group
+        when Sidekiq::Sideline::Group
           {
             "__type__" => "group",
             "children" => workflow.tasks.map { |task| serialize_workflow(task) }
           }
-        when Sidekiq::Workflow::WithDelay
+        when Sidekiq::Sideline::WithDelay
           {
             "__type__" => "with_delay",
             "delay" => workflow.delay,
@@ -42,15 +42,15 @@ module Sidekiq
 
         case workflow.fetch("__type__")
         when "job"
-          Sidekiq::Workflow::Job.from_h(workflow)
+          Sidekiq::Sideline::Job.from_h(workflow)
         when "chain"
           children = workflow.fetch("children")
-          Sidekiq::Workflow::Chain.new(*children.map { |child| unserialize_workflow(child) })
+          Sidekiq::Sideline::Chain.new(*children.map { |child| unserialize_workflow(child) })
         when "group"
           children = workflow.fetch("children")
-          Sidekiq::Workflow::Group.new(*children.map { |child| unserialize_workflow(child) })
+          Sidekiq::Sideline::Group.new(*children.map { |child| unserialize_workflow(child) })
         when "with_delay"
-          Sidekiq::Workflow::WithDelay.new(
+          Sidekiq::Sideline::WithDelay.new(
             unserialize_workflow(workflow.fetch("task")),
             delay: workflow.fetch("delay")
           )

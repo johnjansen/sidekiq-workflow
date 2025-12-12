@@ -1,8 +1,8 @@
 # frozen_string_literal: true
 
 module Sidekiq
-  module Workflow
-    class Chain
+  module Sideline
+    class Group
       attr_reader :tasks
 
       def initialize(*tasks)
@@ -10,11 +10,11 @@ module Sidekiq
       end
 
       def ==(other)
-        other.is_a?(Chain) && tasks == other.tasks
+        other.is_a?(Group) && tasks == other.tasks
       end
 
       def to_s
-        "Chain(#{tasks})"
+        "Group(#{tasks})"
       end
     end
   end

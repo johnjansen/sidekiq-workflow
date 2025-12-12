@@ -5,13 +5,13 @@ require_relative "helper"
 class TypedJobTest < Minitest::Test
   class TaskWithSchema
     include Sidekiq::Job
-    include Sidekiq::Workflow::TypedJob
+    include Sidekiq::Sideline::TypedJob
 
-    class Input < Sidekiq::Workflow::Schema
+    class Input < Sidekiq::Sideline::Schema
       required :field_name, String
     end
 
-    class Output < Sidekiq::Workflow::Schema
+    class Output < Sidekiq::Sideline::Schema
       required :something, String
     end
 
@@ -22,13 +22,13 @@ class TypedJobTest < Minitest::Test
 
   class TaskWithBadOutput
     include Sidekiq::Job
-    include Sidekiq::Workflow::TypedJob
+    include Sidekiq::Sideline::TypedJob
 
-    class Input < Sidekiq::Workflow::Schema
+    class Input < Sidekiq::Sideline::Schema
       required :field_name, String
     end
 
-    class Output < Sidekiq::Workflow::Schema
+    class Output < Sidekiq::Sideline::Schema
       required :something, String
     end
 

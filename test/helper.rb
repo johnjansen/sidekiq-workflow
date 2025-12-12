@@ -8,12 +8,12 @@ require "redis-client"
 
 require "sidekiq"
 require "sidekiq/testing"
-require "sidekiq/workflow"
+require "sidekiq/sideline"
 
 Sidekiq::Testing.inline!
 
 Sidekiq::Testing.server_middleware do |chain|
-  chain.add Sidekiq::Workflow::Middleware
+  chain.add Sidekiq::Sideline::Middleware
 end
 
 def reset_redis!

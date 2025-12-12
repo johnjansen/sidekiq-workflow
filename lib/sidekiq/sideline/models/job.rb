@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Sidekiq
-  module Workflow
+  module Sideline
     class Job
       attr_reader :klass_name
       attr_reader :args

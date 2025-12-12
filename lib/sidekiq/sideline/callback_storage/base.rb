@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Sidekiq
-  module Workflow
+  module Sideline
     module CallbackStorage
       class Base
         def store(_callbacks)

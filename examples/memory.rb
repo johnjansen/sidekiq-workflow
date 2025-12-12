@@ -7,31 +7,31 @@ require "redis-client"
 
 require "sidekiq"
 require "sidekiq/testing"
-require "sidekiq/workflow"
+require "sidekiq/sideline"
 
 Sidekiq::Testing.inline!
 
 Sidekiq::Testing.server_middleware do |chain|
-  chain.add Sidekiq::Workflow::Middleware
+  chain.add Sidekiq::Sideline::Middleware
 end
 
 RedisClient.new(url: ENV.fetch("REDIS_URL")).call("FLUSHDB")
 
-Sidekiq::Workflow.configure do |cfg|
-  cfg.memory = Sidekiq::Workflow::Memory::RedisHashMemory.new(ttl: 300)
+Sidekiq::Sideline.configure do |cfg|
+  cfg.memory = Sidekiq::Sideline::Memory::RedisHashMemory.new(ttl: 300)
 end
 
 class MemoryTask1
   include Sidekiq::Job
-  include Sidekiq::Workflow::TypedJob
+  include Sidekiq::Sideline::TypedJob
 
   sidekiq_options retry: 0
 
-  class Input < Sidekiq::Workflow::Schema
+  class Input < Sidekiq::Sideline::Schema
     required :field_name, String
   end
 
-  class Output < Sidekiq::Workflow::Schema
+  class Output < Sidekiq::Sideline::Schema
     required :something, String
   end
 
@@ -42,15 +42,15 @@ end
 
 class MemoryTask2
   include Sidekiq::Job
-  include Sidekiq::Workflow::TypedJob
+  include Sidekiq::Sideline::TypedJob
 
   sidekiq_options retry: 0
 
-  class Input < Sidekiq::Workflow::Schema
+  class Input < Sidekiq::Sideline::Schema
     required :something, String
   end
 
-  class Output < Sidekiq::Workflow::Schema
+  class Output < Sidekiq::Sideline::Schema
     optional :something, String  # you can mutate the input, but only on output
     required :final, String
   end
@@ -63,17 +63,17 @@ class MemoryTask2
   end
 end
 
-workflow = Sidekiq::Workflow::Workflow.new(
-  Sidekiq::Workflow::Chain.new(
-    Sidekiq::Workflow::Job.new(MemoryTask1, {"field_name" => "hello"}),
+workflow = Sidekiq::Sideline::Workflow.new(
+  Sidekiq::Sideline::Chain.new(
+    Sidekiq::Sideline::Job.new(MemoryTask1, {"field_name" => "hello"}),
     # No args: input is hydrated from workflow memory.
-    Sidekiq::Workflow::Job.new(MemoryTask2)
+    Sidekiq::Sideline::Job.new(MemoryTask2)
   )
 )
 
 run_id = workflow.run
 
-mem = Sidekiq::Workflow.configuration.memory
+mem = Sidekiq::Sideline.configuration.memory
 values = mem.read(run_id, keys: %w[something final], config: Sidekiq.default_configuration)
 
 puts "run_id=#{run_id}"

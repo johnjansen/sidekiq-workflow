@@ -1,6 +1,6 @@
-# sidekiq-workflow
+# sidekiq-sideline
 
-`sidekiq-workflow` allows defining workflows (chains and groups of jobs) on top of Sidekiq.
+`sidekiq-sideline` allows defining workflows (chains and groups of jobs) on top of Sidekiq.
 
 It is intentionally modeled after the approach in `dramatiq-workflow`:
 
@@ -14,7 +14,7 @@ It is intentionally modeled after the approach in `dramatiq-workflow`:
 Add to your Gemfile:
 
 ```ruby
-gem "sidekiq-workflow"
+gem "sidekiq-sideline"
 ```
 
 ## Setup
@@ -22,11 +22,11 @@ gem "sidekiq-workflow"
 Add the server middleware:
 
 ```ruby
-require "sidekiq/workflow"
+require "sidekiq/sideline"
 
 Sidekiq.configure_server do |config|
   config.server_middleware do |chain|
-    chain.add Sidekiq::Workflow::Middleware
+    chain.add Sidekiq::Sideline::Middleware
   end
 end
 ```
@@ -34,7 +34,7 @@ end
 ## Example
 
 ```ruby
-require "sidekiq/workflow"
+require "sidekiq/sideline"
 
 class Task1
   include Sidekiq::Job
@@ -64,14 +64,14 @@ class Task4
   end
 end
 
-workflow = Sidekiq::Workflow::Workflow.new(
-  Sidekiq::Workflow::Chain.new(
-    Sidekiq::Workflow::Job.new(Task1),
-    Sidekiq::Workflow::Group.new(
-      Sidekiq::Workflow::Job.new(Task2),
-      Sidekiq::Workflow::Job.new(Task3)
+workflow = Sidekiq::Sideline::Workflow.new(
+  Sidekiq::Sideline::Chain.new(
+    Sidekiq::Sideline::Job.new(Task1),
+    Sidekiq::Sideline::Group.new(
+      Sidekiq::Sideline::Job.new(Task2),
+      Sidekiq::Sideline::Job.new(Task3)
     ),
-    Sidekiq::Workflow::Job.new(Task4)
+    Sidekiq::Sideline::Job.new(Task4)
   )
 )
 
@@ -83,12 +83,12 @@ workflow.run
 `WithDelay` delays execution by a number of **milliseconds** (to mirror `dramatiq-workflow`).
 
 ```ruby
-require "sidekiq/workflow"
+require "sidekiq/sideline"
 
-workflow = Sidekiq::Workflow::Workflow.new(
-  Sidekiq::Workflow::Chain.new(
-    Sidekiq::Workflow::WithDelay.new(Sidekiq::Workflow::Job.new(Task1), delay: 1_000),
-    Sidekiq::Workflow::Job.new(Task2)
+workflow = Sidekiq::Sideline::Workflow.new(
+  Sidekiq::Sideline::Chain.new(
+    Sidekiq::Sideline::WithDelay.new(Sidekiq::Sideline::Job.new(Task1), delay: 1_000),
+    Sidekiq::Sideline::Job.new(Task2)
   )
 )
 
@@ -97,7 +97,7 @@ workflow.run
 
 ## Typed Inputs/Outputs (Schemas)
 
-Sidekiq jobs can optionally define an `Input` and `Output` schema (validated at runtime) by including `Sidekiq::Workflow::TypedJob`.
+Sidekiq jobs can optionally define an `Input` and `Output` schema (validated at runtime) by including `Sidekiq::Sideline::TypedJob`.
 
 Notes:
 
@@ -108,13 +108,13 @@ Notes:
 ```ruby
 class Task1
   include Sidekiq::Job
-  include Sidekiq::Workflow::TypedJob
+  include Sidekiq::Sideline::TypedJob
 
-  class Input < Sidekiq::Workflow::Schema
+  class Input < Sidekiq::Sideline::Schema
     required :field_name, String
   end
 
-  class Output < Sidekiq::Workflow::Schema
+  class Output < Sidekiq::Sideline::Schema
     required :something, String
   end
 
@@ -130,18 +130,18 @@ Task1.perform_async({"field_name" => "hello"})
 
 Sidekiq does not use a job's return value, so output schemas are only useful if you persist the output somewhere.
 
-`sidekiq-workflow` supports an optional, pluggable per-workflow **memory** backend: a per-run key/value store.
+`sidekiq-sideline` supports an optional, pluggable per-workflow **memory** backend: a per-run key/value store.
 
 ### How it works
 
-- `Workflow#run` generates a `workflow_run_id` (UUID) and attaches it to every enqueued job payload under `workflow_run_id`.
-- `Sidekiq::Workflow::Middleware` wraps job execution in a runtime context (run_id + Sidekiq config), then:
-  - persists the job's return value into memory (when it is a `Hash` or a `Sidekiq::Workflow::Schema`)
+- `Workflow#run` generates a `sideline_run_id` (UUID) and attaches it to every enqueued job payload under `sideline_run_id`.
+- `Sidekiq::Sideline::Middleware` wraps job execution in a runtime context (run_id + Sidekiq config), then:
+  - persists the job's return value into memory (when it is a `Hash` or a `Sidekiq::Sideline::Schema`)
   - advances completion callbacks
 
 ### Input hydration (TypedJob)
 
-When a job includes `Sidekiq::Workflow::TypedJob` and defines `Input`, the input hash is built like:
+When a job includes `Sidekiq::Sideline::TypedJob` and defines `Input`, the input hash is built like:
 
 1. Start with memory values for the keys defined in `Input`
 2. Merge in the job's provided argument hash (provided keys win)
@@ -151,7 +151,7 @@ Typed jobs can therefore be enqueued with **no args** if their `Input` can be fu
 
 ### Output persistence
 
-On successful job completion, the middleware writes the returned hash/schema to memory for the current `workflow_run_id`.
+On successful job completion, the middleware writes the returned hash/schema to memory for the current `sideline_run_id`.
 
 If you "mutate the input", you must return the mutated value if you want it persisted for downstream steps.
 
@@ -165,13 +165,13 @@ A memory backend must implement:
 
 Included backend:
 
-- `Sidekiq::Workflow::Memory::RedisHashMemory` – stores values as JSON in a Redis hash keyed by `key_prefix:run_id` with TTL.
+- `Sidekiq::Sideline::Memory::RedisHashMemory` – stores values as JSON in a Redis hash keyed by `key_prefix:run_id` with TTL.
 
 ### Configuration
 
 ```ruby
-Sidekiq::Workflow.configure do |cfg|
-  cfg.memory = Sidekiq::Workflow::Memory::RedisHashMemory.new(ttl: 300, key_prefix: "swf:mem")
+Sidekiq::Sideline.configure do |cfg|
+  cfg.memory = Sidekiq::Sideline::Memory::RedisHashMemory.new(ttl: 300, key_prefix: "sl:mem")
 end
 ```
 
@@ -189,16 +189,16 @@ A runnable example exists at `examples/memory.rb`.
 
 For larger workflows (e.g. "enrich and index"), you often want to define a DAG shape once and run it many times with different configs.
 
-`sidekiq-workflow` provides a small in-process template registry:
+`sidekiq-sideline` provides a small in-process template registry:
 
-- `Sidekiq::Workflow::Templates.register("name", input: SomeSchema) { |input| ... }`
-- `Sidekiq::Workflow::Templates.run("name", params_hash)`
+- `Sidekiq::Sideline::Templates.register("name", input: SomeSchema) { |input| ... }`
+- `Sidekiq::Sideline::Templates.run("name", params_hash)`
 
 ### Ergonomic config passing via memory + TypedJob
 
-If workflow memory is configured, `Templates.run` will pre-write the template params into memory for the new `workflow_run_id`.
+If workflow memory is configured, `Templates.run` will pre-write the template params into memory for the new `sideline_run_id`.
 
-Jobs which include `Sidekiq::Workflow::TypedJob` can then be enqueued with **no args**; their `Input` schema is hydrated from memory.
+Jobs which include `Sidekiq::Sideline::TypedJob` can then be enqueued with **no args**; their `Input` schema is hydrated from memory.
 
 Job argument hashes still override memory values for a given key.
 
@@ -217,28 +217,28 @@ See `examples/templates_yaml.rb` (loads `examples/config/enrich_and_index.yml`).
 ```ruby
 require "yaml"
 
-Sidekiq::Workflow.configure do |cfg|
-  cfg.memory = Sidekiq::Workflow::Memory::RedisHashMemory.new(ttl: 300, key_prefix: "swf:mem")
+Sidekiq::Sideline.configure do |cfg|
+  cfg.memory = Sidekiq::Sideline::Memory::RedisHashMemory.new(ttl: 300, key_prefix: "sl:mem")
 end
 
 template_config = YAML.load_file("./examples/config/enrich_and_index.yml").transform_keys(&:to_s)
 
-class EnrichAndIndexInput < Sidekiq::Workflow::Schema
+class EnrichAndIndexInput < Sidekiq::Sideline::Schema
   required :doc_id, String
   required :llm_model, String, default: template_config.fetch("llm_model")
   required :index_name, String, default: template_config.fetch("index_name")
 end
 
-Sidekiq::Workflow::Templates.register("enrich_and_index", input: EnrichAndIndexInput) do |_input|
-  Sidekiq::Workflow::Chain.new(
-    Sidekiq::Workflow::Job.new(FetchDoc),
-    Sidekiq::Workflow::Job.new(EnrichDoc),
-    Sidekiq::Workflow::Job.new(IndexDoc)
+Sidekiq::Sideline::Templates.register("enrich_and_index", input: EnrichAndIndexInput) do |_input|
+  Sidekiq::Sideline::Chain.new(
+    Sidekiq::Sideline::Job.new(FetchDoc),
+    Sidekiq::Sideline::Job.new(EnrichDoc),
+    Sidekiq::Sideline::Job.new(IndexDoc)
   )
 end
 
 # Per-run, only pass the truly run-specific input.
-run_id = Sidekiq::Workflow::Templates.run("enrich_and_index", {"doc_id" => "123"})
+run_id = Sidekiq::Sideline::Templates.run("enrich_and_index", {"doc_id" => "123"})
 ```
 
 Runnable examples exist at `examples/templates.rb` and `examples/templates_yaml.rb`.
@@ -247,7 +247,7 @@ Runnable examples exist at `examples/templates.rb` and `examples/templates_yaml.
 
 Groups use Redis barrier keys (atomic counters) to coordinate completion.
 
-The default barrier implementation is `Sidekiq::Workflow::Barrier::AtMostOnceBarrier`:
+The default barrier implementation is `Sidekiq::Sideline::Barrier::AtMostOnceBarrier`:
 
 - It is **at-most-once** for the continuation: it tries to ensure only one worker releases a given barrier.
 - Continuation enqueueing is **active** (it happens immediately when the barrier is released), but it is **not atomic** with the barrier release.
@@ -261,7 +261,7 @@ Barrier keys are created with a TTL (`cfg.barrier_ttl`) primarily as a garbage-c
 From inside a running job, you can refresh the TTL on any barrier keys referenced by that job's workflow callbacks:
 
 ```ruby
-Sidekiq::Workflow.extend_ttl!(ttl: 300)
+Sidekiq::Sideline.extend_ttl!(ttl: 300)
 ```
 
 ## Proof / Demo
@@ -269,7 +269,7 @@ Sidekiq::Workflow.extend_ttl!(ttl: 300)
 From this repository:
 
 ```sh
-cd sidekiq-workflow
+cd sidekiq-sideline
 bundle install
 bundle exec ruby examples/proof.rb
 ```

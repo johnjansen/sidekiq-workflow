@@ -3,7 +3,7 @@
 require "securerandom"
 
 module Sidekiq
-  module Workflow
+  module Sideline
     class Workflow
       attr_reader :run_id
 
@@ -15,7 +15,7 @@ module Sidekiq
         @delay = nil
         @completion_callbacks = nil
 
-        while @workflow.is_a?(Sidekiq::Workflow::WithDelay)
+        while @workflow.is_a?(Sidekiq::Sideline::WithDelay)
           @delay = (@delay || 0) + @workflow.delay
           @workflow = @workflow.task
         end
@@ -38,10 +38,10 @@ module Sidekiq
         completion_callbacks = @completion_callbacks || []
 
         case current
-        when Sidekiq::Workflow::Job
+        when Sidekiq::Sideline::Job
           enqueue_job(current, completion_callbacks)
           run_id
-        when Sidekiq::Workflow::Chain
+        when Sidekiq::Sideline::Chain
           tasks = current.tasks.dup
           if tasks.empty?
             schedule_noop(completion_callbacks)
@@ -53,7 +53,7 @@ module Sidekiq
             completion_id = create_barrier(1)
             completion_callbacks += [[
               completion_id,
-              Sidekiq::Workflow::Serialize.serialize_workflow(Sidekiq::Workflow::Chain.new(*tasks)),
+              Sidekiq::Sideline::Serialize.serialize_workflow(Sidekiq::Sideline::Chain.new(*tasks)),
               false
             ]]
           end
@@ -65,7 +65,7 @@ module Sidekiq
             delay: @delay,
             run_id: run_id
           ).run
-        when Sidekiq::Workflow::Group
+        when Sidekiq::Sideline::Group
           tasks = current.tasks.dup
           if tasks.empty?
             schedule_noop(completion_callbacks)
@@ -95,8 +95,8 @@ module Sidekiq
       def create_barrier(count)
         completion_id = SecureRandom.uuid
 
-        barrier_class = Sidekiq::Workflow.configuration.barrier_class
-        barrier_ttl = Sidekiq::Workflow.configuration.barrier_ttl
+        barrier_class = Sidekiq::Sideline.configuration.barrier_class
+        barrier_ttl = Sidekiq::Sideline.configuration.barrier_ttl
 
         barrier = barrier_class.new(completion_id, ttl: barrier_ttl, config: @config)
         barrier.create(count)
@@ -106,11 +106,11 @@ module Sidekiq
 
       def enqueue_job(job, completion_callbacks)
         item = job.sidekiq_item
-        item[Sidekiq::Workflow::OPTION_KEY_RUN_ID] = run_id
+        item[Sidekiq::Sideline::OPTION_KEY_RUN_ID] = run_id
 
         if completion_callbacks.any?
-          callbacks_ref = Sidekiq::Workflow.configuration.callback_storage.store(completion_callbacks)
-          item[Sidekiq::Workflow::OPTION_KEY_CALLBACKS] = callbacks_ref
+          callbacks_ref = Sidekiq::Sideline.configuration.callback_storage.store(completion_callbacks)
+          item[Sidekiq::Sideline::OPTION_KEY_CALLBACKS] = callbacks_ref
         end
 
         if @delay && @delay.to_f > 0
@@ -123,11 +123,11 @@ module Sidekiq
 
       def schedule_noop(completion_callbacks)
         if !@delay || @delay.to_f <= 0
-          Sidekiq::Workflow::CompletionCallbacks.new(config: @config).process(completion_callbacks, run_id: run_id)
+          Sidekiq::Sideline::CompletionCallbacks.new(config: @config).process(completion_callbacks, run_id: run_id)
           return
         end
 
-        noop = Sidekiq::Workflow::Job.new(Sidekiq::Workflow::NoopWorker)
+        noop = Sidekiq::Sideline::Job.new(Sidekiq::Sideline::NoopWorker)
         Workflow.with_completion_callbacks(
           noop,
           config: @config,

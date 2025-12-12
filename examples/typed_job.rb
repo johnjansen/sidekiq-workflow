@@ -6,21 +6,21 @@ require "bundler/setup"
 
 require "sidekiq"
 require "sidekiq/testing"
-require "sidekiq/workflow"
+require "sidekiq/sideline"
 
 Sidekiq::Testing.inline!
 
 class TypedExampleTask
   include Sidekiq::Job
-  include Sidekiq::Workflow::TypedJob
+  include Sidekiq::Sideline::TypedJob
 
   sidekiq_options retry: 0
 
-  class Input < Sidekiq::Workflow::Schema
+  class Input < Sidekiq::Sideline::Schema
     required :field_name, String
   end
 
-  class Output < Sidekiq::Workflow::Schema
+  class Output < Sidekiq::Sideline::Schema
     required :something, String
   end
 

@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Sidekiq
-  module Workflow
+  module Sideline
     class Template
       attr_reader :name
       attr_reader :input
@@ -11,8 +11,8 @@ module Sidekiq
         raise ArgumentError, "Template name must be non-empty" if @name.empty?
         raise ArgumentError, "Template must be initialized with a block" unless block
 
-        if input && !(input.is_a?(Class) && input < Sidekiq::Workflow::Schema)
-          raise ArgumentError, "Template input must be a Sidekiq::Workflow::Schema subclass"
+        if input && !(input.is_a?(Class) && input < Sidekiq::Sideline::Schema)
+          raise ArgumentError, "Template input must be a Sidekiq::Sideline::Schema subclass"
         end
 
         @input = input
@@ -34,7 +34,7 @@ module Sidekiq
       def input_hash(params = {})
         input_value = coerce_input(params)
 
-        return input_value.to_h if input_value.is_a?(Sidekiq::Workflow::Schema)
+        return input_value.to_h if input_value.is_a?(Sidekiq::Sideline::Schema)
 
         raise TypeError, "Template input must be a Hash" unless input_value.is_a?(Hash)
         input_value
@@ -54,10 +54,10 @@ module Sidekiq
 
       def validate_workflow!(workflow)
         allowed = [
-          Sidekiq::Workflow::Job,
-          Sidekiq::Workflow::Chain,
-          Sidekiq::Workflow::Group,
-          Sidekiq::Workflow::WithDelay
+          Sidekiq::Sideline::Job,
+          Sidekiq::Sideline::Chain,
+          Sidekiq::Sideline::Group,
+          Sidekiq::Sideline::WithDelay
         ]
 
         return if allowed.any? { |klass| workflow.is_a?(klass) }
@@ -72,7 +72,7 @@ module Sidekiq
 
       class << self
         def register(name, input: nil, &block)
-          template = Sidekiq::Workflow::Template.new(name, input: input, &block)
+          template = Sidekiq::Sideline::Template.new(name, input: input, &block)
           key = template.name
 
           raise ArgumentError, "Template already registered: #{key}" if @templates.key?(key)
@@ -92,7 +92,7 @@ module Sidekiq
           template = fetch(name)
           workflow, input_value = template.build_with_input(params)
 
-          wf = Sidekiq::Workflow::Workflow.new(workflow, config: config)
+          wf = Sidekiq::Sideline::Workflow.new(workflow, config: config)
           seed_memory(wf.run_id, input_value, config: config)
 
           wf.run
@@ -109,10 +109,10 @@ module Sidekiq
         private
 
         def seed_memory(run_id, input_value, config:)
-          memory = Sidekiq::Workflow.configuration.memory
+          memory = Sidekiq::Sideline.configuration.memory
           return false unless memory
 
-          hash = if input_value.is_a?(Sidekiq::Workflow::Schema)
+          hash = if input_value.is_a?(Sidekiq::Sideline::Schema)
             input_value.to_h
           else
             input_value

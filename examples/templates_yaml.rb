@@ -8,18 +8,18 @@ require "yaml"
 
 require "sidekiq"
 require "sidekiq/testing"
-require "sidekiq/workflow"
+require "sidekiq/sideline"
 
 Sidekiq::Testing.inline!
 
 Sidekiq::Testing.server_middleware do |chain|
-  chain.add Sidekiq::Workflow::Middleware
+  chain.add Sidekiq::Sideline::Middleware
 end
 
 RedisClient.new(url: ENV.fetch("REDIS_URL")).call("FLUSHDB")
 
-Sidekiq::Workflow.configure do |cfg|
-  cfg.memory = Sidekiq::Workflow::Memory::RedisHashMemory.new(ttl: 300, key_prefix: "swf:example:mem")
+Sidekiq::Sideline.configure do |cfg|
+  cfg.memory = Sidekiq::Sideline::Memory::RedisHashMemory.new(ttl: 300, key_prefix: "sl:example:mem")
 end
 
 CONFIG_PATH = File.expand_path("config/enrich_and_index.yml", __dir__)
@@ -27,15 +27,15 @@ TEMPLATE_CONFIG = YAML.load_file(CONFIG_PATH).transform_keys(&:to_s)
 
 class FetchDoc
   include Sidekiq::Job
-  include Sidekiq::Workflow::TypedJob
+  include Sidekiq::Sideline::TypedJob
 
   sidekiq_options retry: 0
 
-  class Input < Sidekiq::Workflow::Schema
+  class Input < Sidekiq::Sideline::Schema
     required :doc_id, String
   end
 
-  class Output < Sidekiq::Workflow::Schema
+  class Output < Sidekiq::Sideline::Schema
     required :doc_text, String
   end
 
@@ -48,16 +48,16 @@ end
 
 class EnrichDoc
   include Sidekiq::Job
-  include Sidekiq::Workflow::TypedJob
+  include Sidekiq::Sideline::TypedJob
 
   sidekiq_options retry: 0
 
-  class Input < Sidekiq::Workflow::Schema
+  class Input < Sidekiq::Sideline::Schema
     required :doc_text, String
     required :llm_model, String
   end
 
-  class Output < Sidekiq::Workflow::Schema
+  class Output < Sidekiq::Sideline::Schema
     required :enriched_text, String
   end
 
@@ -70,17 +70,17 @@ end
 
 class IndexDoc
   include Sidekiq::Job
-  include Sidekiq::Workflow::TypedJob
+  include Sidekiq::Sideline::TypedJob
 
   sidekiq_options retry: 0
 
-  class Input < Sidekiq::Workflow::Schema
+  class Input < Sidekiq::Sideline::Schema
     required :doc_id, String
     required :enriched_text, String
     required :index_name, String
   end
 
-  class Output < Sidekiq::Workflow::Schema
+  class Output < Sidekiq::Sideline::Schema
     required :indexed, TrueClass
   end
 
@@ -93,24 +93,24 @@ class IndexDoc
 end
 
 # Bake YAML config into the template by using schema defaults.
-EnrichAndIndexInput = Class.new(Sidekiq::Workflow::Schema) do
+EnrichAndIndexInput = Class.new(Sidekiq::Sideline::Schema) do
   required :doc_id, String
   required :llm_model, String, default: TEMPLATE_CONFIG.fetch("llm_model")
   required :index_name, String, default: TEMPLATE_CONFIG.fetch("index_name")
 end
 
-Sidekiq::Workflow::Templates.register("enrich_and_index", input: EnrichAndIndexInput) do |_input|
-  Sidekiq::Workflow::Chain.new(
-    Sidekiq::Workflow::Job.new(FetchDoc),
-    Sidekiq::Workflow::Job.new(EnrichDoc),
-    Sidekiq::Workflow::Job.new(IndexDoc)
+Sidekiq::Sideline::Templates.register("enrich_and_index", input: EnrichAndIndexInput) do |_input|
+  Sidekiq::Sideline::Chain.new(
+    Sidekiq::Sideline::Job.new(FetchDoc),
+    Sidekiq::Sideline::Job.new(EnrichDoc),
+    Sidekiq::Sideline::Job.new(IndexDoc)
   )
 end
 
 # Per-run, only pass the truly run-specific input.
-run_id = Sidekiq::Workflow::Templates.run("enrich_and_index", {"doc_id" => "123"})
+run_id = Sidekiq::Sideline::Templates.run("enrich_and_index", {"doc_id" => "123"})
 
-mem = Sidekiq::Workflow.configuration.memory
+mem = Sidekiq::Sideline.configuration.memory
 values = mem.read(
   run_id,
   keys: %w[doc_id llm_model index_name doc_text enriched_text indexed],

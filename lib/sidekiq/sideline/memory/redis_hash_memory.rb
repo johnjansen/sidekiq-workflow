@@ -1,10 +1,10 @@
 # frozen_string_literal: true
 
 module Sidekiq
-  module Workflow
+  module Sideline
     module Memory
       class RedisHashMemory < Base
-        def initialize(ttl: 86_400, key_prefix: "swf:mem")
+        def initialize(ttl: 86_400, key_prefix: "sl:mem")
           @ttl = ttl
           @key_prefix = key_prefix
         end

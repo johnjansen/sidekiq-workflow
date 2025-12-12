@@ -1,7 +1,7 @@
 # frozen_string_literal: true
 
 module Sidekiq
-  module Workflow
+  module Sideline
     module Memory
       class Base
         def write(_run_id, _hash, config:)
