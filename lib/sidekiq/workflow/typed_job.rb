@@ -55,14 +55,33 @@ module Sidekiq
       end
 
       def build_typed_input(input_schema, args)
-        raise ArgumentError, "TypedJob expects exactly one argument" unless args.size == 1
+        raw = case args.size
+        when 0
+          {}
+        when 1
+          args.first
+        else
+          raise ArgumentError, "TypedJob expects zero or one argument"
+        end
 
-        raw = args.first
+        raw = {} if raw.nil?
         return raw if raw.is_a?(input_schema)
 
         raise TypeError, "TypedJob input must be a Hash" unless raw.is_a?(Hash)
 
-        input_schema.new(raw)
+        input_schema.new(hydrate_input_from_memory(input_schema, raw))
+      end
+
+      def hydrate_input_from_memory(input_schema, raw)
+        memory = Sidekiq::Workflow.configuration.memory
+        run_id = Sidekiq::Workflow::Runtime.current_run_id
+        config = Sidekiq::Workflow::Runtime.current_config
+
+        return raw unless memory && run_id && config
+
+        keys = input_schema.fields.keys
+        from_mem = memory.read(run_id, keys: keys, config: config)
+        from_mem.merge(raw)
       end
 
       def build_typed_output(output_schema, result)

@@ -7,7 +7,7 @@ module Sidekiq
         @config = config
       end
 
-      def process(completion_callbacks)
+      def process(completion_callbacks, run_id: nil)
         while completion_callbacks.any?
           completion_id, remaining_workflow, propagate = completion_callbacks[-1]
 
@@ -24,7 +24,8 @@ module Sidekiq
             Sidekiq::Workflow::Workflow.with_completion_callbacks(
               workflow,
               config: @config,
-              completion_callbacks: completion_callbacks
+              completion_callbacks: completion_callbacks,
+              run_id: run_id
             ).run
           end
 

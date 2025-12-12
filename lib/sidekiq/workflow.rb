@@ -9,9 +9,14 @@ require "sidekiq/workflow/callback_storage"
 require "sidekiq/workflow/callback_storage/base"
 require "sidekiq/workflow/callback_storage/inline_callback_storage"
 
+require "sidekiq/workflow/memory"
+require "sidekiq/workflow/memory/base"
+require "sidekiq/workflow/memory/redis_hash_memory"
+
 require "sidekiq/workflow/barrier/at_most_once_barrier"
 
 require "sidekiq/workflow/configuration"
+require "sidekiq/workflow/runtime"
 
 require "sidekiq/workflow/schema"
 require "sidekiq/workflow/typed_job"

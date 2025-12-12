@@ -126,6 +126,25 @@ end
 Task1.perform_async({"field_name" => "hello"})
 ```
 
+## Memory (for DAG-style data passing)
+
+Sidekiq does not use a job's return value, so output schemas are only useful if you persist the output somewhere.
+
+`sidekiq-workflow` supports an optional, pluggable per-workflow **memory** backend:
+
+- Workflow middleware can persist a typed job's output into memory.
+- Typed jobs can hydrate their `Input` from memory (missing/partial inputs).
+
+Configure a backend (Redis example):
+
+```ruby
+Sidekiq::Workflow.configure do |cfg|
+  cfg.memory = Sidekiq::Workflow::Memory::RedisHashMemory.new(ttl: 300)
+end
+```
+
+A runnable example exists at `examples/memory.rb`.
+
 ## Proof / Demo
 
 From this repository:
