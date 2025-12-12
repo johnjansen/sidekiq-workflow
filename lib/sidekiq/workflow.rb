@@ -42,6 +42,14 @@ module Sidekiq
       def configure
         yield(configuration)
       end
+
+      # Refresh the TTL on any barrier keys associated with the currently-running job.
+      # This can be useful for long-running jobs in large workflows.
+      #
+      # No-op unless called from inside a Sidekiq server job execution.
+      def extend_ttl!(ttl: nil)
+        Sidekiq::Workflow::Runtime.extend_ttl!(ttl: ttl)
+      end
     end
   end
 end

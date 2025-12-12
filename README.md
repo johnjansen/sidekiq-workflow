@@ -185,6 +185,27 @@ For group-heavy DAGs, prefer namespacing keys (e.g. `"task1.something"`) or impl
 
 A runnable example exists at `examples/memory.rb`.
 
+## Barriers (group completion) and TTL
+
+Groups use Redis barrier keys (atomic counters) to coordinate completion.
+
+The default barrier implementation is `Sidekiq::Workflow::Barrier::AtMostOnceBarrier`:
+
+- It is **at-most-once** for the continuation: it tries to ensure only one worker releases a given barrier.
+- Continuation enqueueing is **active** (it happens immediately when the barrier is released), but it is **not atomic** with the barrier release.
+
+This means there is a rare crash window where a worker can release the barrier but die before it enqueues the continuation, leaving the workflow "stuck" until manual intervention.
+
+Barrier keys are created with a TTL (`cfg.barrier_ttl`) primarily as a garbage-collection mechanism. For long-running jobs/workflows, you may want to refresh barrier TTL.
+
+### Refreshing barrier TTL from inside `perform`
+
+From inside a running job, you can refresh the TTL on any barrier keys referenced by that job's workflow callbacks:
+
+```ruby
+Sidekiq::Workflow.extend_ttl!(ttl: 300)
+```
+
 ## Proof / Demo
 
 From this repository:

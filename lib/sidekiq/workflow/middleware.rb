@@ -7,14 +7,14 @@ module Sidekiq
 
       def call(_worker, msg, _queue)
         run_id = msg[Sidekiq::Workflow::OPTION_KEY_RUN_ID]
+        callbacks_ref = msg[Sidekiq::Workflow::OPTION_KEY_CALLBACKS]
 
-        result = Sidekiq::Workflow::Runtime.with(run_id: run_id, config: config) do
+        result = Sidekiq::Workflow::Runtime.with(run_id: run_id, config: config, callbacks_ref: callbacks_ref) do
           yield
         end
 
         persist_output(run_id, result)
 
-        callbacks_ref = msg[Sidekiq::Workflow::OPTION_KEY_CALLBACKS]
         return if callbacks_ref.nil?
 
         completion_callbacks = Sidekiq::Workflow.configuration.callback_storage.retrieve(callbacks_ref)
