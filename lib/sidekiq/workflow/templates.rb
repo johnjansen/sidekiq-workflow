@@ -20,10 +20,24 @@ module Sidekiq
       end
 
       def build(params = {})
+        workflow, _input_value = build_with_input(params)
+        workflow
+      end
+
+      def build_with_input(params = {})
         input_value = coerce_input(params)
         workflow = @builder.call(input_value)
         validate_workflow!(workflow)
-        workflow
+        [workflow, input_value]
+      end
+
+      def input_hash(params = {})
+        input_value = coerce_input(params)
+
+        return input_value.to_h if input_value.is_a?(Sidekiq::Workflow::Schema)
+
+        raise TypeError, "Template input must be a Hash" unless input_value.is_a?(Hash)
+        input_value
       end
 
       private
@@ -75,8 +89,13 @@ module Sidekiq
         end
 
         def run(name, params = {}, config: Sidekiq.default_configuration)
-          workflow = build(name, params)
-          Sidekiq::Workflow::Workflow.new(workflow, config: config).run
+          template = fetch(name)
+          workflow, input_value = template.build_with_input(params)
+
+          wf = Sidekiq::Workflow::Workflow.new(workflow, config: config)
+          seed_memory(wf.run_id, input_value, config: config)
+
+          wf.run
         end
 
         def clear!
@@ -85,6 +104,24 @@ module Sidekiq
 
         def names
           @templates.keys.sort
+        end
+
+        private
+
+        def seed_memory(run_id, input_value, config:)
+          memory = Sidekiq::Workflow.configuration.memory
+          return false unless memory
+
+          hash = if input_value.is_a?(Sidekiq::Workflow::Schema)
+            input_value.to_h
+          else
+            input_value
+          end
+
+          return false unless hash.is_a?(Hash)
+
+          memory.write(run_id, hash, config: config)
+          true
         end
       end
     end

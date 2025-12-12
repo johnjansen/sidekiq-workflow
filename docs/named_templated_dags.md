@@ -18,22 +18,39 @@ Add a small in-process registry of templates.
 - Template builder receives a params object (ideally a `Sidekiq::Workflow::Schema`)
 - Builder returns a workflow node (`Job`, `Chain`, `Group`, `WithDelay`)
 
+### Ergonomics trick: seed config into workflow memory
+
+If workflow memory is enabled, `Templates.run` can pre-write the template params into memory for the new `run_id`.
+
+Then, jobs that include `Sidekiq::Workflow::TypedJob` can define `Input` schemas and be enqueued with **no args** (their inputs hydrate from memory).
+
 Example:
 
 ```ruby
-class CheckoutInput < Sidekiq::Workflow::Schema
-  required :events_key, String
+class EnrichAndIndexInput < Sidekiq::Workflow::Schema
+  required :index_name, String
+  required :doc_id, String
 end
 
-Sidekiq::Workflow::Templates.register("checkout", input: CheckoutInput) do |input|
+Sidekiq::Workflow::Templates.register("enrich_and_index", input: EnrichAndIndexInput) do |_input|
   Sidekiq::Workflow::Chain.new(
-    Sidekiq::Workflow::Job.new(Task1, input.events_key),
-    Sidekiq::Workflow::Job.new(Task2, input.events_key)
+    Sidekiq::Workflow::Job.new(FetchDoc),
+    Sidekiq::Workflow::Job.new(EnrichDoc),
+    Sidekiq::Workflow::Job.new(IndexDoc)
   )
 end
 
-Sidekiq::Workflow::Templates.run("checkout", {"events_key" => "events"})
+Sidekiq::Workflow::Templates.run(
+  "enrich_and_index",
+  {"index_name" => "products", "doc_id" => "123"}
+)
 ```
+
+Notes:
+
+- This keeps the template shape stable and central.
+- The config is provided once "from the outside".
+- Per-step overrides are still possible by passing an arg hash to a specific `Job.new(...)` (job args win over memory).
 
 Pros:
 

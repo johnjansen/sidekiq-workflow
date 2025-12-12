@@ -5,55 +5,86 @@ require_relative "helper"
 class TemplatesTest < Minitest::Test
   class Task1
     include Sidekiq::Job
+    include Sidekiq::Workflow::TypedJob
 
     sidekiq_options retry: 0
 
-    def perform(events_key)
-      Sidekiq.redis { |c| c.call("RPUSH", events_key, "task1") }
+    class Input < Sidekiq::Workflow::Schema
+      required :events_key, String
+    end
+
+    def perform(input)
+      Sidekiq.redis { |c| c.call("RPUSH", input.events_key, "task1") }
     end
   end
 
   class Task2
     include Sidekiq::Job
+    include Sidekiq::Workflow::TypedJob
 
     sidekiq_options retry: 0
 
-    def perform(events_key)
-      Sidekiq.redis { |c| c.call("RPUSH", events_key, "task2") }
+    class Input < Sidekiq::Workflow::Schema
+      required :events_key, String
+    end
+
+    def perform(input)
+      Sidekiq.redis { |c| c.call("RPUSH", input.events_key, "task2") }
     end
   end
 
   class Task3
     include Sidekiq::Job
+    include Sidekiq::Workflow::TypedJob
 
     sidekiq_options retry: 0
 
-    def perform(events_key)
-      Sidekiq.redis { |c| c.call("RPUSH", events_key, "task3") }
+    class Input < Sidekiq::Workflow::Schema
+      required :events_key, String
+    end
+
+    def perform(input)
+      Sidekiq.redis { |c| c.call("RPUSH", input.events_key, "task3") }
     end
   end
 
   class Task4
     include Sidekiq::Job
+    include Sidekiq::Workflow::TypedJob
 
     sidekiq_options retry: 0
 
-    def perform(events_key)
-      Sidekiq.redis { |c| c.call("RPUSH", events_key, "task4") }
+    class Input < Sidekiq::Workflow::Schema
+      required :events_key, String
+    end
+
+    def perform(input)
+      Sidekiq.redis { |c| c.call("RPUSH", input.events_key, "task4") }
     end
   end
 
-  class Input < Sidekiq::Workflow::Schema
+  class TemplateInput < Sidekiq::Workflow::Schema
     required :events_key, String
   end
 
   def setup
     super
+
     Sidekiq::Workflow::Templates.clear!
+
+    @old_memory = Sidekiq::Workflow.configuration.memory
+    Sidekiq::Workflow.configure do |cfg|
+      cfg.memory = Sidekiq::Workflow::Memory::RedisHashMemory.new(ttl: 60, key_prefix: "swf:test:mem")
+    end
   end
 
   def teardown
     Sidekiq::Workflow::Templates.clear!
+
+    Sidekiq::Workflow.configure do |cfg|
+      cfg.memory = @old_memory
+    end
+
     super
   end
 
@@ -62,14 +93,14 @@ class TemplatesTest < Minitest::Test
   end
 
   def test_run_named_template
-    Sidekiq::Workflow::Templates.register("demo", input: Input) do |input|
+    Sidekiq::Workflow::Templates.register("demo", input: TemplateInput) do |_input|
       Sidekiq::Workflow::Chain.new(
-        Sidekiq::Workflow::Job.new(Task1, input.events_key),
+        Sidekiq::Workflow::Job.new(Task1),
         Sidekiq::Workflow::Group.new(
-          Sidekiq::Workflow::Job.new(Task2, input.events_key),
-          Sidekiq::Workflow::Job.new(Task3, input.events_key)
+          Sidekiq::Workflow::Job.new(Task2),
+          Sidekiq::Workflow::Job.new(Task3)
         ),
-        Sidekiq::Workflow::Job.new(Task4, input.events_key)
+        Sidekiq::Workflow::Job.new(Task4)
       )
     end
 
