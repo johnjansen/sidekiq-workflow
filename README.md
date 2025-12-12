@@ -210,37 +210,38 @@ A common pattern is:
 - Treat those values as defaults in the template `Input` schema
 - Require only the truly run-specific input at runtime (e.g. `doc_id`)
 
+Because `Templates.run` seeds the constructed `Input` into memory, the defaults are applied and persisted for the run.
+
 See `examples/templates_yaml.rb` (loads `examples/config/enrich_and_index.yml`).
 
 ```ruby
+require "yaml"
+
 Sidekiq::Workflow.configure do |cfg|
   cfg.memory = Sidekiq::Workflow::Memory::RedisHashMemory.new(ttl: 300, key_prefix: "swf:mem")
 end
 
+template_config = YAML.load_file("./examples/config/enrich_and_index.yml").transform_keys(&:to_s)
+
 class EnrichAndIndexInput < Sidekiq::Workflow::Schema
   required :doc_id, String
-
-  class Index < Sidekiq::Workflow::Schema
-    required :index_name, String
-  end
-
-  required :index, Index
+  required :llm_model, String, default: template_config.fetch("llm_model")
+  required :index_name, String, default: template_config.fetch("index_name")
 end
 
 Sidekiq::Workflow::Templates.register("enrich_and_index", input: EnrichAndIndexInput) do |_input|
   Sidekiq::Workflow::Chain.new(
     Sidekiq::Workflow::Job.new(FetchDoc),
+    Sidekiq::Workflow::Job.new(EnrichDoc),
     Sidekiq::Workflow::Job.new(IndexDoc)
   )
 end
 
-run_id = Sidekiq::Workflow::Templates.run(
-  "enrich_and_index",
-  {"doc_id" => "123", "index" => {"index_name" => "products"}}
-)
+# Per-run, only pass the truly run-specific input.
+run_id = Sidekiq::Workflow::Templates.run("enrich_and_index", {"doc_id" => "123"})
 ```
 
-A runnable example exists at `examples/templates.rb`.
+Runnable examples exist at `examples/templates.rb` and `examples/templates_yaml.rb`.
 
 ## Barriers (group completion) and TTL
 
