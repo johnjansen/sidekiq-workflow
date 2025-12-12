@@ -67,4 +67,14 @@ class TypedJobTest < Minitest::Test
       TaskWithBadOutput.new.perform({"field_name" => "hello"})
     end
   end
+
+  def test_schema_allows_typed_assignment_with_validation
+    input = TaskWithSchema::Input.new({"field_name" => "hello"})
+    input.field_name = "world"
+    assert_equal "world", input.field_name
+
+    assert_raises(TypeError) do
+      input.field_name = 123
+    end
+  end
 end

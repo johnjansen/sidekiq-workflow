@@ -36,6 +36,12 @@ module Sidekiq
           }
 
           attr_reader name
+
+          ivar = "@#{name}"
+          define_method(:"#{name}=") do |value|
+            value = coerce_value(type, value, key)
+            instance_variable_set(ivar, value)
+          end
         end
       end
 
