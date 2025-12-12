@@ -1,0 +1,7 @@
+# Example config baked into a workflow template.
+#
+# The idea: you configure these once (at boot), then per-run you only pass the
+# truly run-specific input (e.g. doc_id).
+
+llm_model: gpt-4.1-mini
+index_name: products

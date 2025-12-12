@@ -202,6 +202,16 @@ Jobs which include `Sidekiq::Workflow::TypedJob` can then be enqueued with **no 
 
 Job argument hashes still override memory values for a given key.
 
+### Baking template config (e.g. from YAML)
+
+A common pattern is:
+
+- Load a template config once (e.g. from YAML at boot)
+- Treat those values as defaults in the template `Input` schema
+- Require only the truly run-specific input at runtime (e.g. `doc_id`)
+
+See `examples/templates_yaml.rb` (loads `examples/config/enrich_and_index.yml`).
+
 ```ruby
 Sidekiq::Workflow.configure do |cfg|
   cfg.memory = Sidekiq::Workflow::Memory::RedisHashMemory.new(ttl: 300, key_prefix: "swf:mem")
